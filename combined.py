@@ -750,7 +750,8 @@ async def button(update: Update, context):
 
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
-    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
+    from waitress import serve
+    serve(flask_app, host="0.0.0.0", port=port)
 
 
 def main():
