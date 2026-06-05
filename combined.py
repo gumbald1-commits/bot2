@@ -765,18 +765,20 @@ def main():
         tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         job_queue = tg_app.job_queue
         job_queue.run_repeating(send_reminders, interval=3600, first=30)
-        await tg_app.initialize()
-        await tg_app.start()
-        await tg_app.updater.start_polling()
-        await asyncio.Event().wait()
+        async with tg_app:
+            await tg_app.start()
+            await tg_app.updater.start_polling()
+            await asyncio.Event().wait()
 
-    bot_thread = threading.Thread(target=lambda: asyncio.run(run_bot()), daemon=True)
+    def start_bot():
+        asyncio.run(run_bot())
+
+    bot_thread = threading.Thread(target=start_bot, daemon=True)
     bot_thread.start()
-    logging.info("Bot started in background")
 
     port = int(os.environ.get("PORT", 5000))
     from waitress import serve
-    logging.info(f"Starting Flask on port {port}")
+    logging.info(f"Flask starting on port {port}")
     serve(flask_app, host="0.0.0.0", port=port)
 
 
