@@ -755,19 +755,29 @@ def run_flask():
 
 
 def main():
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    logging.info("Flask started")
+    import asyncio
 
-    from telegram.ext import Application as TGApp
-    tg_app = TGApp.builder().token(TOKEN).build()
-    tg_app.add_handler(CommandHandler("start", start))
-    tg_app.add_handler(CommandHandler("cancel", cancel_cmd))
-    tg_app.add_handler(CallbackQueryHandler(button))
-    tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    job_queue = tg_app.job_queue
-    job_queue.run_repeating(send_reminders, interval=3600, first=30)
-    tg_app.run_polling()
+    async def run_bot():
+        tg_app = Application.builder().token(TOKEN).build()
+        tg_app.add_handler(CommandHandler("start", start))
+        tg_app.add_handler(CommandHandler("cancel", cancel_cmd))
+        tg_app.add_handler(CallbackQueryHandler(button))
+        tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        job_queue = tg_app.job_queue
+        job_queue.run_repeating(send_reminders, interval=3600, first=30)
+        await tg_app.initialize()
+        await tg_app.start()
+        await tg_app.updater.start_polling()
+        await asyncio.Event().wait()
+
+    bot_thread = threading.Thread(target=lambda: asyncio.run(run_bot()), daemon=True)
+    bot_thread.start()
+    logging.info("Bot started in background")
+
+    port = int(os.environ.get("PORT", 5000))
+    from waitress import serve
+    logging.info(f"Starting Flask on port {port}")
+    serve(flask_app, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
